@@ -3,36 +3,26 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "alloc-inl.h"
+#include "mutator.h"
 
 
 
-uint8_t fuzz_one(char *in_buf, int len) {
+uint32_t fuzzing_engine(int fd, unsigned long addr, char *in_buf, int len) {
 
   signed int stage_cur, stage_max, stage_cur_byte, stage_cur_val;
-  uint8_t i;
+  uint8_t i, j;
   uint8_t *stage_name = "init";
   uint8_t *stage_short = "init";
   uint8_t *out_buf;
   
-  uint8_t  ret_val = 1;
+  uint32_t  ret_val = 1;
 
 
   out_buf = malloc(len*sizeof(len));
 
  
+ 
   memcpy(out_buf, in_buf, len);
-
-
-  /*********************************************
-   * SIMPLE BITFLIP (+dictionary construction) *
-   *********************************************/
-
-#define FLIP_BIT(_ar, _b) do { \
-    uint8_t* _arf = (uint8_t*)(_ar); \
-    uint32_t _bf = (_b); \
-    _arf[(_bf) >> 3] ^= (128 >> ((_bf) & 7)); \
-  } while (0)
 
   /* Single walking bit. */
 
@@ -47,7 +37,11 @@ uint8_t fuzz_one(char *in_buf, int len) {
 
     FLIP_BIT(out_buf, stage_cur);
     
-    printf("%d, %s\n", stage_cur, out_buf);	
+    lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
     
     FLIP_BIT(out_buf, stage_cur);
   }
@@ -65,7 +59,11 @@ uint8_t fuzz_one(char *in_buf, int len) {
     FLIP_BIT(out_buf, stage_cur);
     FLIP_BIT(out_buf, stage_cur + 1);
 
-    printf("%d, %s\n", stage_cur, out_buf);
+    lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
 
     FLIP_BIT(out_buf, stage_cur);
     FLIP_BIT(out_buf, stage_cur + 1);
@@ -85,7 +83,11 @@ uint8_t fuzz_one(char *in_buf, int len) {
     FLIP_BIT(out_buf, stage_cur + 2);
     FLIP_BIT(out_buf, stage_cur + 3);
 
-    printf("%d, %s\n", stage_cur, out_buf);
+    lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
 
     FLIP_BIT(out_buf, stage_cur);
     FLIP_BIT(out_buf, stage_cur + 1);
@@ -104,7 +106,11 @@ uint8_t fuzz_one(char *in_buf, int len) {
 
     out_buf[stage_cur] ^= 0xFF;
 
-    printf("%d, %s\n", stage_cur, out_buf);
+    lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
 
     out_buf[stage_cur] ^= 0xFF;
 
@@ -119,16 +125,161 @@ uint8_t fuzz_one(char *in_buf, int len) {
 
     stage_cur_byte = i;
 
-    *(u16*)(out_buf + i) ^= 0xFFFF;
+    *(uint16_t*)(out_buf + i) ^= 0xFFFF;
     
-    printf("%d, %s\n", stage_cur, out_buf);
+    lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
     stage_cur++;
 
-    *(u16*)(out_buf + i) ^= 0xFFFF;
+    *(uint16_t*)(out_buf + i) ^= 0xFFFF;
 
 
   }
 
+  stage_name  = "bitflip 32/8";
+  stage_short = "flip32";
+  stage_cur   = 0;
+  stage_max   = len - 3;
+
+
+  for (i = 0; i < len - 3; i++) {
+
+    stage_cur_byte = i;
+
+    *(uint32_t*)(out_buf + i) ^= 0xFFFFFFFF;
+
+    lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
+
+    stage_cur++;
+
+    *(uint32_t*)(out_buf + i) ^= 0xFFFFFFFF;
+
+  }
+  
+  
+  stage_name  = "arith 8/8";
+  stage_short = "arith8";
+  stage_cur   = 0;
+  stage_max   = 2 * len * ARITH_MAX;
+
+  for (i = 0; i < len; i++) {
+
+    uint8_t orig = out_buf[i];
+
+    stage_cur_byte = i;
+
+    for (j = 1; j <= ARITH_MAX; j++) {
+
+      uint8_t r = orig ^ (orig + j);
+
+      lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
+      
+      stage_max--;
+
+      r =  orig ^ (orig - j);
+
+      stage_max--;
+
+      out_buf[i] = orig;
+
+    }
+
+  }
+
+
+  stage_name  = "arith 16/8";
+  stage_short = "arith16";
+  stage_cur   = 0;
+  stage_max   = 4 * (len - 1) * ARITH_MAX;
+
+ 
+  for (i = 0; i < len - 1; i++) {
+
+    uint16_t orig = *(uint16_t*)(out_buf + i);
+
+
+    stage_cur_byte = i;
+
+    for (j = 1; j <= ARITH_MAX; j++) {
+
+      uint16_t r1 = orig ^ (orig + j),
+          r2 = orig ^ (orig - j),
+          r3 = orig ^ SWAP16(SWAP16(orig) + j),
+          r4 = orig ^ SWAP16(SWAP16(orig) - j);
+
+      lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
+
+      stage_max--;
+      
+      stage_max--;
+
+      
+      *(uint16_t*)(out_buf + i) = orig;
+
+    }
+
+  }
+
+
+  stage_name  = "arith 32/8";
+  stage_short = "arith32";
+  stage_cur   = 0;
+  stage_max   = 4 * (len - 3) * ARITH_MAX;
+
+
+  for (i = 0; i < len - 3; i++) {
+
+    uint32_t orig = *(uint32_t*)(out_buf + i);
+
+
+    stage_cur_byte = i;
+
+    for (j = 1; j <= ARITH_MAX; j++) {
+
+      uint32_t r1 = orig ^ (orig + j),
+          r2 = orig ^ (orig - j),
+          r3 = orig ^ SWAP32(SWAP32(orig) + j),
+          r4 = orig ^ SWAP32(SWAP32(orig) - j);
+      
+      lseek(fd, addr, SEEK_SET);
+  		if (write (fd, out_buf , len) == -1) {
+  	   		printf("Error while writing\n");
+  	  		exit(1);
+  		}
+      
+      stage_max--;
+      
+      stage_max--;
+
+      
+      *(uint32_t*)(out_buf + i) = orig;
+      	
+    }
+     printf("%d, %d\n", stage_cur_byte, orig);
+     
+    if (i == len - 4)
+
+	return orig;
+
+    else
+
+	continue;
+  }
 
   return ret_val;
 
@@ -136,14 +287,28 @@ uint8_t fuzz_one(char *in_buf, int len) {
 
 
 
-int main(){
+/*int main(){
 	
 
 	int start_val = 0x11111111;
 	char *buf = malloc(4*sizeof(uint8_t));
 	sprintf(buf, "%d", start_val);
 	int len = strlen(buf);
+	
+	for(int i=0; i<5; i++){
+		uint32_t retval = fuzzing_engine(buf, len);
+		sprintf(buf, "%d", retval);
+	}
+}*/
 
-	uint8_t retval = fuzz_one(buf, len);
 
-}  
+
+
+ 
+
+
+
+
+
+
+  

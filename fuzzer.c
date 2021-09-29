@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include "mutator.h"
 
 #define LEN 128
 #define MAX_LINE_LENGTH 80
@@ -103,12 +105,12 @@ int addr_calc(char *proc_maps, int tid){
    		return EXIT_FAILURE;
   	}
 	
-	char lines[15][MAX_LINE_LENGTH] = {0};
+	char lines[25][MAX_LINE_LENGTH] = {0};
 	unsigned int line_count = 0;
 	int retval;
 	int tempid;
 	
-	while((fgets(lines[line_count], MAX_LINE_LENGTH, fd_proc_maps))&&(line_count<14))
+	while((fgets(lines[line_count], MAX_LINE_LENGTH, fd_proc_maps))&&(line_count<20))
 		line_count++;		
 
 	char *token = NULL;	
@@ -119,12 +121,14 @@ int addr_calc(char *proc_maps, int tid){
 	int i=1;
 
 	
-	token = strtok(lines[6], delim[0]);
+	token = strtok(lines[12], delim[0]);
+	printf("%s\n", token);
 	
 	while((token != NULL)&&(i<3)){
 		token = strtok(token, delim[i]);
 		token = strtok(NULL, delim[i]);
 		i++;
+		
 	}
 	
 	if(token!=NULL){
@@ -142,7 +146,7 @@ int addr_calc(char *proc_maps, int tid){
 		
 	}
 	else{
-		token = strtok(lines[4], delim[3]);
+		token = strtok(lines[18], delim[3]);
 		retval = atoi(token);	
 	}
 		
@@ -185,7 +189,8 @@ int main(int argc, char* argv[]) {
   
   	int tempy = addr_calc(proc_maps, taskid);
   	int in_addr = 0x0;
-  	if((tempy==EXIT_FAILURE)||(tempy==1))
+  	
+        if((tempy==EXIT_FAILURE)||(tempy==1))
 		exit(1);
   	else
 		in_addr = tempy+0x12;
@@ -200,27 +205,21 @@ int main(int argc, char* argv[]) {
     	exit(1);
 	  }
 
-  	int* buf = malloc(len);
-  	int *beef = malloc(len);
-  	*beef = 0x777;
+  	char *buf = malloc(len);
+  	char *beef = malloc(len);
+  	*beef = 0xbeef;
                     
 
   	lseek(fd_proc_mem, addr, SEEK_SET);
-  	//read (fd_proc_mem, buf , len);
-
-  	//printf("String at 0x%lx in process %d is:\n", addr, pid);
-  	//printf("  %s\n", buf);
-  
-  	//printf("\nNow, this string is modified\n");
   	memcpy(buf, beef, len);
 	
-	for(int j=0; j<1000000; j++){
-  		lseek(fd_proc_mem, addr, SEEK_SET);
-  		if (write (fd_proc_mem, buf , len) == -1) {
-  	   		printf("Error while writing\n");
-  	  		exit(1);
-  		}
-  	}
+
+	for(int i=0; i<100; i++){
+		uint32_t retval = fuzzing_engine(fd_proc_mem, addr, buf, len);
+		sprintf(buf, "%d", retval);
+	}
+	
+	
   	free(buf);
   	free(proc_mem);
   	free(proc_maps);
