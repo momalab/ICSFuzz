@@ -43,6 +43,6 @@ Tychalas, Dimitrios, Hadjer Benkraouda, and Michail Maniatakos. "ICSFuzz: Manipu
 Acknowledgements
 ================
 
-``ICSFuzz``, as all things good in life, is based on the shoulder of giants. The framework is based on the powerfule ``AFL`` by Michal Zalewski for producing the necessary input mutations that are delivered to the ICS application.
+``ICSFuzz``, as all things good in life, is based on the shoulder of giants. The framework is based on the powerful ``AFL`` by Michal Zalewski for producing the necessary input mutations that are delivered to the ICS application.
 
 * `AFL <https://lcamtuf.coredump.cx/afl/>`__
