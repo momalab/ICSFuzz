@@ -270,7 +270,7 @@ uint32_t fuzzing_engine(int fd, unsigned long addr, char *in_buf, int len) {
       *(uint32_t*)(out_buf + i) = orig;
       	
     }
-     printf("%d, %d\n", stage_cur_byte, orig);
+
      
     if (i == len - 4)
 

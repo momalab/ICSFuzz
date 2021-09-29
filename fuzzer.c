@@ -122,7 +122,6 @@ int addr_calc(char *proc_maps, int tid){
 
 	
 	token = strtok(lines[12], delim[0]);
-	printf("%s\n", token);
 	
 	while((token != NULL)&&(i<3)){
 		token = strtok(token, delim[i]);
@@ -154,7 +153,7 @@ int addr_calc(char *proc_maps, int tid){
 		return EXIT_FAILURE;
 		perror(proc_maps);
 	}
-	printf("retval is %d", retval);
+
 	return retval;
 }
 		
@@ -195,10 +194,10 @@ int main(int argc, char* argv[]) {
   	else
 		in_addr = tempy+0x12;
 
-  	printf("PLC input fuzzing address is %d\n", in_addr);
+  	//printf("PLC input fuzzing address is %d\n", in_addr);
 	
   
-  	printf("opening %s, address is %lx\n", proc_mem, addr);
+  	printf("opening %s, address is 0x%lx\n", proc_mem, addr);
   	int fd_proc_mem = open(proc_mem, O_RDWR);
   	if (fd_proc_mem == -1) {
     	printf("Could not open %s\n", proc_mem);
@@ -206,15 +205,14 @@ int main(int argc, char* argv[]) {
 	  }
 
   	char *buf = malloc(len);
-  	char *beef = malloc(len);
-  	*beef = 0xbeef;
+  	int seed_input = 0xdeadbeef;
                     
 
   	lseek(fd_proc_mem, addr, SEEK_SET);
-  	memcpy(buf, beef, len);
+  	sprintf(buf, "%d", seed_input);
 	
 
-	for(int i=0; i<100; i++){
+	while(1){
 		uint32_t retval = fuzzing_engine(fd_proc_mem, addr, buf, len);
 		sprintf(buf, "%d", retval);
 	}
