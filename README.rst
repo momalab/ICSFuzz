@@ -1,5 +1,5 @@
 ******************************************************
-ICSFuzz: Fuzzing Tool for ICS Control Applicatons
+ICSFuzz: Fuzzing Tool for ICS Control Applications
 ******************************************************
 
 Overview
